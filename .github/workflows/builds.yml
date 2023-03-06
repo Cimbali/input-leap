@@ -1,6 +1,8 @@
 name: Build tests
 
 on:
+  release:
+
   push:
     branches: [ master ]
   pull_request:
@@ -8,10 +10,15 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      build_release:
+        description: 'Build Release binaries'
+        required: false
+        type: boolean
 
 # Set the build type here
 env:
-  B_BUILD_TYPE: Debug
+  B_BUILD_TYPE: ${{ (inputs.build_release || startsWith(github.ref, 'refs/tags/v')) && 'Release' || 'Debug' }}
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
@@ -182,11 +189,11 @@ jobs:
           cmake --build build --parallel
 
       - uses: actions/upload-artifact@v3
-        if: matrix.os == 'windows-2022' && env.B_BUILD_TYPE == 'Release'
+        if: env.B_BUILD_TYPE == 'Release'
         with:
           name: Publish the DMG for ${{ matrix.os }}
           path: ./build/bundle/*.dmg
-          if-no-files-found: warn
+          if-no-files-found: error
 
 
   win-build:
