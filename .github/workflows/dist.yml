@@ -8,13 +8,23 @@ on:
     branches: [ master ]
 
 jobs:
-  fedora:
+  rpm:
     runs-on: ubuntu-latest
-    container: fedora:36
+    container: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["fedora:36", "opensuse/tumbleweed"]
+        include:
+          - installer: dnf install -y
+            rpm_tag: fedora
+          - os: opensuse/tumbleweed
+            installer: zypper install -y
+            rpm_tag: suse_version
 
     steps:
       - name: Install extra build dependencies
-        run: dnf install -y git rpm-build
+        run: ${{ matrix.installer }} git rpm-build
 
       # submodules require git to be installed
       - name: Check out repository
@@ -26,7 +36,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-            grep -oP "^BuildRequires: \K.*" input-leap/dist/rpm/input-leap.spec.in | xargs dnf install -y
+          # Print only what follows ^BuildRequires in the range of lines between %if 0%{?xxxx} and %endif where xxxx is the rpm_tag
+          sed -n '/^%if 0%{?${{ matrix.rpm_tag }}}$/,/^%endif$/{s/^BuildRequires: //p}' input-leap/dist/rpm/input-leap.spec.in | xargs ${{ matrix.installer }}
 
       - name: prep tree
         run: |
