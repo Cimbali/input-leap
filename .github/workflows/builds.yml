@@ -139,6 +139,7 @@ jobs:
         run: |
           cmake -DCMAKE_BUILD_TYPE="${B_BUILD_TYPE}" -S input-leap -B build \
                 -DCMAKE_CXX_FLAGS:STRING="-Wall -Wextra -Wno-unused-parameter" \
+                -DCMAKE_CXX_FLAGS_DEBUG:STRING="-g -Werror" \
                 -DINPUTLEAP_BUILD_LIBEI:BOOL=${{ matrix.wayland }}
         env:
             VERBOSE: 1
