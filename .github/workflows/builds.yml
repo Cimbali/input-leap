@@ -29,8 +29,14 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu:18.04", "ubuntu:20.04", "ubuntu:22.04"]
+        cc: ["gcc"]
         wayland: [false]
         include:
+          - cc: "gcc"
+            cxx: "g++"
+          - os: "ubuntu:22.04"
+            cc: "clang"
+            cxx: "clang++"
           - os: "ubuntu:22.04"
             wayland: true
     steps:
@@ -59,6 +65,7 @@ jobs:
           apt-get install -y \
                   cmake \
                   g++ \
+                  clang \
                   git \
                   libavahi-compat-libdnssd-dev \
                   libcurl4-openssl-dev \
@@ -143,6 +150,8 @@ jobs:
                 -DINPUTLEAP_BUILD_LIBEI:BOOL=${{ matrix.wayland }}
         env:
             VERBOSE: 1
+            CC: ${{ matrix.cc }}
+            CXX: ${{ matrix.cxx }}
 
       - name: Run the build
         run: |
