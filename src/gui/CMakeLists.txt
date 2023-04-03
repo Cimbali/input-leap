@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.4)
+cmake_minimum_required (VERSION 3.14)
 
 find_package (QT NAMES Qt6 Qt5 REQUIRED)
 find_package (Qt${QT_VERSION_MAJOR} COMPONENTS Core Widgets Network LinguistTools REQUIRED)
@@ -172,6 +172,13 @@ set(TS_FILES
     res/lang/gui_zh-TW.ts
 )
 
+# When cross-compiling, override paths to l10n tools with native tool directory
+if(IS_DIRECTORY "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}")
+    set_target_properties(Qt5::lrelease PROPERTIES IMPORTED_LOCATION "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/lrelease")
+    set_target_properties(Qt5::lupdate PROPERTIES IMPORTED_LOCATION "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/lupdate")
+    set_target_properties(Qt5::lconvert PROPERTIES IMPORTED_LOCATION "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/lconvert")
+endif()
+
 set_source_files_properties(${TS_FILES} PROPERTIES OUTPUT_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/res/lang")
 if (Qt5_FOUND)
     qt5_add_translation(QM_FILES ${TS_FILES} OPTIONS -silent)
@@ -196,6 +203,14 @@ add_executable (input-leap WIN32
     ${GUI_RC_FILES}
     res/InputLeap.qrc
 )
+
+# When cross-compiling, override paths to qt5 tools with native tool directory
+if(IS_DIRECTORY "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}")
+    set_target_properties(input-leap PROPERTIES
+        AUTOUIC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/uic
+        AUTORCC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/rcc
+        AUTOMOC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/moc)
+endif()
 
 include_directories (./src)
 
@@ -260,4 +275,12 @@ if(INPUTLEAP_BUILD_TESTS)
 
     target_include_directories(guiunittests PUBLIC ../../ext)
     target_link_libraries(guiunittests gtest gmock Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${libs})
+
+    # When cross-compiling, override paths to qt5 tools with native tool directory
+    if(IS_DIRECTORY "${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}")
+        set_target_properties(guiunittests PROPERTIES
+            AUTOUIC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/uic
+            AUTORCC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/rcc
+            AUTOMOC_EXECUTABLE ${INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH}/moc)
+    endif()
 endif()

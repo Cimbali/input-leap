@@ -172,16 +172,52 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-11, macos-12]
+        arch: [arm64, x86_64]
 
     env:
       VERBOSE: 1
       TERM: xterm-256color
+      OS_TAG: ${{ matrix.os == 'macos-11' && 'big_sur' || 'monterey' }}
 
     steps:
       - name: Setup the image
+        id: brew_native
         run: |
           brew install qt5
           brew install ninja
+          brew install openssl
+
+          echo openssl_path=`brew --prefix openssl` | tee -a $GITHUB_OUTPUT
+          echo qt5_path=`brew --prefix qt@5` | tee -a $GITHUB_OUTPUT
+
+      - name: Install ARM64 Homebrew
+        if: matrix.arch == 'arm64'
+        id: brew_arm
+        run: |
+          mkdir arm-homebrew
+          curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C arm-homebrew
+
+          arm-homebrew/bin/brew tap homebrew/core
+
+          # Install dependencies manually as automatic dependencies would be native architecture
+          # This also forces bottle instead of source compilation, which is fine since we do not
+          # need the packages to be functional, and only will use relocated libraries anyway.
+          echo "OpenSSL dependencies:"
+          arm-homebrew/bin/brew deps -n openssl | tee deps
+          echo openssl | tee -a deps
+
+          echo "Qt5 dependencies:"
+          arm-homebrew/bin/brew deps -n qt5 | grep -vxFf deps | tee -a deps
+          echo qt5 | tee -a deps
+
+          for pkg in `cat deps`; do
+            arm-homebrew/bin/brew fetch --force --bottle-tag=${{ matrix.arch }}_$OS_TAG $pkg
+            arm-homebrew/bin/brew install `arm-homebrew/bin/brew --cache --bottle-tag=${{ matrix.arch }}_$OS_TAG $pkg`
+          done
+
+          echo qt5_path=`arm-homebrew/bin/brew --prefix qt5` | tee -a $GITHUB_OUTPUT
+          echo openssl_path=`arm-homebrew/bin/brew --prefix openssl` | tee -a $GITHUB_OUTPUT
+          rm -f deps
 
       - uses: actions/checkout@v3
         with:
@@ -190,10 +226,15 @@ jobs:
 
       - name: Setup the build
         run: |
-          . input-leap/macos_environment.sh
           cmake -DCMAKE_BUILD_TYPE="${B_BUILD_TYPE}" -S input-leap -B build -G Ninja \
                 -DCMAKE_OSX_SYSROOT=$(xcode-select --print-path)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_UNITY_BUILD=1
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_UNITY_BUILD=1 -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+                -DINPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH=${{ steps.brew_native.outputs.qt5_path }}/bin
+        env:
+          CMAKE_PREFIX_PATH: "${{ matrix.arch == 'x86_64' && steps.brew_native.outputs.qt5_path || steps.brew_arm.outputs.qt5_path }}:\
+            ${{ matrix.arch == 'x86_64' && steps.brew_native.outputs.openssl_path || steps.brew_arm.outputs.openssl_path }}"
+          PKG_CONFIG_PATH: "${{ matrix.arch == 'x86_64' && steps.brew_native.outputs.qt5_path || steps.brew_arm.outputs.qt5_path }}/lib/pkgconfig:\
+            ${{ matrix.arch == 'x86_64' && steps.brew_native.outputs.openssl_path || steps.brew_arm.outputs.openssl_path }}/lib/pkgconfig"
 
       - name: Run the build
         run: |
@@ -202,7 +243,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: env.B_BUILD_TYPE == 'Release'
         with:
-          name: ${{ matrix.os }}-installer
+          name: Publish the ${{ matrix.arch }} DMG for ${{ matrix.os }}
           path: ./build/bundle/*.dmg
           if-no-files-found: error
 

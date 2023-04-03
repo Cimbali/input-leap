@@ -24,6 +24,7 @@ option(INPUTLEAP_BUILD_TESTS "Build the tests" ON)
 option(INPUTLEAP_USE_EXTERNAL_GTEST "Use external installation of Google Test framework" OFF)
 option(INPUTLEAP_BUILD_X11 "Build with XWindows support" ON)
 option(INPUTLEAP_BUILD_LIBEI "Build with libei support" OFF)
+option(INPUTLEAP_QT_NATIVE_TOOLS_BIN_PATH "Override path to Qt5 native tools")
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_CXX_STANDARD 14)
@@ -251,7 +252,14 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     find_program(BREW_PROGRAM "brew")
     find_program(PORT_PROGRAM "port")
 
-    if (IS_DIRECTORY /opt/procursus AND APT_PROGRAM)
+    pkg_check_modules (OPENSSL openssl)
+    if (OPENSSL_FOUND)
+        include_directories (BEFORE SYSTEM ${OPENSSL_INCLUDE_DIRS})
+        set (OPENSSL_LIBS
+            ${OPENSSL_STATIC_LIBRARY_DIRS}/libssl.a
+            ${OPENSSL_STATIC_LIBRARY_DIRS}/libcrypto.a
+        )
+    elseif (IS_DIRECTORY /opt/procursus AND APT_PROGRAM)
         # procursus/apt
         set (OPENSSL_ROOT /opt/procursus)
 
