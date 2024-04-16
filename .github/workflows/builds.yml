@@ -120,21 +120,21 @@ jobs:
           set-safe-directory: ${{ github.workspace }}
 
       - name: Get libei v1.3.0 from freedesktop
-        # Manual checkout of libinput/libei ref 1.3.0 from https://gitlab.freedesktop.org
-        # because actions/checkout does not support gitlab
+        uses: actions/checkout@v4
         if: matrix.wayland
-        run: |
-          git clone --depth=1 --branch="$ref" --recurse-submodules -- \
-            "https://gitlab.freedesktop.org/libinput/libei" libei
-        env:
+        with:
+          github-server-url: https://gitlab.freedesktop.org/
+          repository: libinput/libei
           ref: 1.3.0
+          path: libei
+          submodules: true
 
-      - name: Get libportal from upstream
+      - name: Get libportal v0.8.1 from upstream
         uses: actions/checkout@v4
         if: matrix.wayland
         with:
           repository: flatpak/libportal
-          ref: main
+          ref: 0.8.1
           path: libportal
 
       - if: matrix.wayland
