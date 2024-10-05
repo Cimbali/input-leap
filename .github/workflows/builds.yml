@@ -434,6 +434,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+        with:
+          path: input-leap
+          submodules: recursive
+          set-safe-directory: ${{ github.workspace }}
+
     - name: Build on FreeBSD 14.1
       id: test
       uses: vmactions/freebsd-vm@v1
@@ -457,12 +462,8 @@ jobs:
               qt6-declarative
 
         run: |
-          git config --global --add safe.directory /home/runner/work/input-leap/input-leap
-          git submodule update --init --recursive
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Debug -DINPUTLEAP_BUILD_INSTALLER=OFF ..
-          cmake --build .
+          cmake -DCMAKE_BUILD_TYPE=Debug -DINPUTLEAP_BUILD_INSTALLER=OFF -S input-leap -B build
+          cmake --build build
 
   flatpak:
     runs-on: ubuntu-latest
@@ -474,7 +475,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          path: input-leap
           submodules: recursive
+          set-safe-directory: ${{ github.workspace }}
 
       - run: git config --global protocol.file.allow always
 
@@ -482,5 +485,5 @@ jobs:
         name: "Build"
         with:
           bundle: input-leap.flatpak
-          manifest-path: dist/flatpak/io.github.input_leap.InputLeap.yml
+          manifest-path: input-leap/dist/flatpak/io.github.input_leap.InputLeap.yml
           cache-key: flatpak-builder-${{ github.sha }}
